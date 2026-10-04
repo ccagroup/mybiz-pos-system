@@ -27,6 +27,9 @@ export default defineConfig({
             type: 'image/jpeg'
           }
         ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}']
       }
     })
   ],
