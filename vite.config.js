@@ -30,7 +30,10 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
+        // THESE TWO LINES FIX THE OFFLINE ERROR:
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/_/, /\/[^\/]+\.[^\/]+$/],
       }
     })
   ],
