@@ -16,24 +16,20 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         start_url: "./",
+        scope: "./",
         icons: [
-          {
-            src: 'icon.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'icon.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+          { src: 'icon.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon.png', sizes: '512x512', type: 'image/png' }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
-        // THESE TWO LINES FIX THE OFFLINE ERROR:
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^\/]+\.[^\/]+$/],
+        // THESE THREE LINES FORCE THE OFFLINE UPDATE:
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       }
     })
   ],
