@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.png', '_redirects'],
+      includeAssets: ['icon.png'],
       manifest: {
         name: 'mybiz POS System',
         short_name: 'mybiz',
@@ -15,8 +15,8 @@ export default defineConfig({
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: "./",
-        scope: "./",
+        start_url: '/',
+        scope: '/',
         icons: [
           { src: 'icon.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon.png', sizes: '512x512', type: 'image/png' }
@@ -26,7 +26,6 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^\/]+\.[^\/]+$/],
-        // THESE THREE LINES FORCE THE OFFLINE UPDATE:
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
