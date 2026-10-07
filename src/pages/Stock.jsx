@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Plus, Search, Grid, List, Trash2, AlertTriangle, X, Package, CheckCircle, ArrowUpCircle } from 'lucide-react';
+import { Plus, Search, Grid, List, Trash2, AlertTriangle, X, CheckCircle, ArrowUpCircle, Edit3 } from 'lucide-react';
 
 export default function Stock() {
   const [showModal, setShowModal] = useState(false);
@@ -9,14 +9,13 @@ export default function Stock() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // New states for Restock and Delete
   const [restockProduct, setRestockProduct] = useState(null);
   const [restockVariantId, setRestockVariantId] = useState(null);
   const [restockQty, setRestockQty] = useState('');
   const [deleteId, setDeleteId] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: '', category: '', sellingPrice: '', costPrice: '', description: '', image: '',
+    id: null, name: '', category: '', sellingPrice: '', costPrice: '', description: '', image: '',
     variants: [{ color: '', size: '', stockQuantity: '' }]
   });
 
@@ -46,23 +45,51 @@ export default function Stock() {
   };
   const addVariantRow = () => setFormData({ ...formData, variants: [...formData.variants, { color: '', size: '', stockQuantity: '' }] });
 
+  // --- UPDATED SAVE LOGIC (Handles both Create and Edit) ---
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.category || !formData.sellingPrice) return;
-    const newProductId = await db.products.add({
-      name: formData.name, category: formData.category, sellingPrice: parseFloat(formData.sellingPrice),
-      costPrice: parseFloat(formData.costPrice) || 0, description: formData.description, image: formData.image,
-      createdAt: new Date(), isDeleted: false
-    });
-    const variantsToSave = formData.variants.filter(v => v.color && v.size && v.stockQuantity).map(v => ({
-      productId: newProductId, color: v.color, size: v.size, stockQuantity: parseInt(v.stockQuantity)
-    }));
-    if (variantsToSave.length > 0) await db.variants.bulkAdd(variantsToSave);
-    setFormData({ name: '', category: '', sellingPrice: '', costPrice: '', description: '', image: '', variants: [{ color: '', size: '', stockQuantity: '' }] });
+
+    if (formData.id) {
+      // UPDATE EXISTING PRODUCT
+      await db.products.update(formData.id, {
+        name: formData.name, category: formData.category, 
+        sellingPrice: parseFloat(formData.sellingPrice),
+        costPrice: parseFloat(formData.costPrice) || 0, 
+        description: formData.description, image: formData.image
+      });
+    } else {
+      // CREATE NEW PRODUCT
+      const newProductId = await db.products.add({
+        name: formData.name, category: formData.category, sellingPrice: parseFloat(formData.sellingPrice),
+        costPrice: parseFloat(formData.costPrice) || 0, description: formData.description, image: formData.image,
+        createdAt: new Date(), isDeleted: false
+      });
+      const variantsToSave = formData.variants.filter(v => v.color && v.size && v.stockQuantity).map(v => ({
+        productId: newProductId, color: v.color, size: v.size, stockQuantity: parseInt(v.stockQuantity)
+      }));
+      if (variantsToSave.length > 0) await db.variants.bulkAdd(variantsToSave);
+    }
+
+    setFormData({ id: null, name: '', category: '', sellingPrice: '', costPrice: '', description: '', image: '', variants: [{ color: '', size: '', stockQuantity: '' }] });
     setShowModal(false);
   };
 
-  // --- RESTOCK LOGIC ---
+  // --- NEW: OPEN EDIT MODAL ---
+  const openEditModal = (product) => {
+    setFormData({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      sellingPrice: product.sellingPrice.toString(),
+      costPrice: product.costPrice.toString(),
+      description: product.description || '',
+      image: product.image || '',
+      variants: [] // We don't edit variants here, just prices
+    });
+    setShowModal(true);
+  };
+
   const handleRestock = async () => {
     if (!restockVariantId || !restockQty) return;
     const variant = await db.variants.get(restockVariantId);
@@ -70,7 +97,6 @@ export default function Stock() {
     setRestockProduct(null); setRestockVariantId(null); setRestockQty('');
   };
 
-  // --- DELETE LOGIC ---
   const confirmDelete = async () => {
     if (deleteId) {
       await db.products.update(deleteId, { isDeleted: true });
@@ -113,7 +139,11 @@ export default function Stock() {
             <div key={product.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
               <div className="flex justify-between items-start mb-3">
                 <div><h3 className="font-bold text-gray-900 dark:text-gray-100">{product.name}</h3><p className="text-xs text-gray-500">{product.category}</p></div>
-                <button onClick={() => setDeleteId(product.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
+                <div className="flex gap-2">
+                  {/* NEW: Edit Button */}
+                  <button onClick={() => openEditModal(product)} className="text-gray-400 hover:text-blue-500"><Edit3 size={18} /></button>
+                  <button onClick={() => setDeleteId(product.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
+                </div>
               </div>
               <div className="flex items-center justify-between mt-4">
                 <div><p className="text-xs text-gray-500">Price</p><p className="font-semibold">KES {product.sellingPrice.toLocaleString()}</p></div>
@@ -125,7 +155,6 @@ export default function Stock() {
                   </div>
                 </div>
               </div>
-              {/* RESTOCK BUTTON */}
               <button onClick={() => { setRestockProduct(product); setRestockVariantId(product.variants[0]?.id); setRestockQty(''); }}
                 className="w-full mt-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center gap-2">
                 <ArrowUpCircle size={16} /> Restock
@@ -135,12 +164,12 @@ export default function Stock() {
         </div>
       )}
 
-      {/* ADD PRODUCT MODAL (Same as before) */}
+      {/* ADD/EDIT PRODUCT MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-bold">Add New Product</h3>
+              <h3 className="text-xl font-bold">{formData.id ? 'Edit Product Prices' : 'Add New Product'}</h3>
               <button onClick={() => setShowModal(false)}><X size={20} /></button>
             </div>
             <form onSubmit={handleSaveProduct} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -150,21 +179,26 @@ export default function Stock() {
                 <div><label className="block text-sm font-medium mb-1">Selling Price *</label><input name="sellingPrice" type="number" required value={formData.sellingPrice} onChange={handleInputChange} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" /></div>
                 <div><label className="block text-sm font-medium mb-1">Cost Price</label><input name="costPrice" type="number" value={formData.costPrice} onChange={handleInputChange} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" /></div>
               </div>
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-center mb-3"><label className="block text-sm font-medium">Variants</label><button type="button" onClick={addVariantRow} className="text-sm text-primary-600 font-medium">+ Add Variant</button></div>
-                <div className="space-y-3">
-                  {formData.variants.map((v, i) => (
-                    <div key={i} className="grid grid-cols-3 gap-3">
-                      <input placeholder="Color" value={v.color} onChange={(e) => handleVariantChange(i, 'color', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
-                      <input placeholder="Size" value={v.size} onChange={(e) => handleVariantChange(i, 'size', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
-                      <input type="number" placeholder="Qty" value={v.stockQuantity} onChange={(e) => handleVariantChange(i, 'stockQuantity', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
-                    </div>
-                  ))}
+              
+              {/* Only show variants section if creating a NEW product */}
+              {!formData.id && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex justify-between items-center mb-3"><label className="block text-sm font-medium">Variants</label><button type="button" onClick={addVariantRow} className="text-sm text-primary-600 font-medium">+ Add Variant</button></div>
+                  <div className="space-y-3">
+                    {formData.variants.map((v, i) => (
+                      <div key={i} className="grid grid-cols-3 gap-3">
+                        <input placeholder="Color" value={v.color} onChange={(e) => handleVariantChange(i, 'color', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+                        <input placeholder="Size" value={v.size} onChange={(e) => handleVariantChange(i, 'size', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+                        <input type="number" placeholder="Qty" value={v.stockQuantity} onChange={(e) => handleVariantChange(i, 'stockQuantity', e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm" />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-lg border border-gray-300 dark:border-gray-600 font-medium">Cancel</button>
-                <button type="submit" className="flex-1 py-3 rounded-lg bg-primary-600 text-white font-medium">Save</button>
+                <button type="submit" className="flex-1 py-3 rounded-lg bg-primary-600 text-white font-medium">{formData.id ? 'Update Prices' : 'Save'}</button>
               </div>
             </form>
           </div>
@@ -180,27 +214,19 @@ export default function Stock() {
               <button onClick={() => setRestockProduct(null)}><X size={20} /></button>
             </div>
             <p className="text-sm text-gray-500 mb-4">Adding stock to: <span className="font-bold text-gray-900 dark:text-gray-100">{restockProduct.name}</span></p>
-            
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Select Variant</label>
             <select value={restockVariantId || ''} onChange={(e) => setRestockVariantId(Number(e.target.value))} className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-4">
               {restockProduct.variants.map(v => (
                 <option key={v.id} value={v.id}>{v.color} / {v.size} (Current: {v.stockQuantity})</option>
               ))}
             </select>
-
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Quantity to Add</label>
             <input type="number" value={restockQty} onChange={(e) => setRestockQty(e.target.value)} placeholder="e.g. 10" className="w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-lg font-bold mb-4" />
-         <button 
-  onClick={handleRestock} 
-  disabled={!restockVariantId || !restockQty} 
-  style={{
-    backgroundColor: (!restockVariantId || !restockQty) ? '#f3f4f6' : '#2563eb',
-    color: (!restockVariantId || !restockQty) ? '#9ca3af' : '#ffffff'
-  }}
-  className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 border-transparent hover:border-blue-700"
->
-  <CheckCircle size={18} /> Confirm Restock
-</button>
+            <button onClick={handleRestock} disabled={!restockVariantId || !restockQty} 
+              style={{ backgroundColor: (!restockVariantId || !restockQty) ? '#f3f4f6' : '#2563eb', color: (!restockVariantId || !restockQty) ? '#9ca3af' : '#ffffff' }}
+              className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 border-transparent hover:border-blue-700">
+              <CheckCircle size={18} /> Confirm Restock
+            </button>
           </div>
         </div>
       )}

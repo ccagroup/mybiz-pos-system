@@ -1,32 +1,26 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import { Search, Plus, Minus, Trash2, ShoppingCart, CheckCircle, X, Banknote, Smartphone, CreditCard } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, CheckCircle, X, Banknote, Smartphone } from 'lucide-react';
 
 export default function Sales() {
   const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Checkout Modal State
   const [showCheckout, setShowCheckout] = useState(false);
   const [customerType, setCustomerType] = useState('walkin');
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [newCustomerName, setNewCustomerName] = useState('');
-  
-  // Split Payment State
   const [cashPaid, setCashPaid] = useState(0);
   const [mpesaPaid, setMpesaPaid] = useState(0);
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Variant Selection Modal State
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [chosenVariantId, setChosenVariantId] = useState(null);
   const [variantQty, setVariantQty] = useState(1);
 
-  // Fetch products and variants
   const products = useLiveQuery(async () => {
     const allProducts = await db.products.toArray();
     const allVariants = await db.variants.toArray();
@@ -39,7 +33,6 @@ export default function Sales() {
   const customers = useLiveQuery(() => db.customers.toArray());
   const safeProducts = products || [];
   const safeCustomers = customers || [];
-
   const categories = ['All', ...new Set(safeProducts.map(p => p.category).filter(Boolean))];
 
   const filteredProducts = safeProducts.filter(p => {
@@ -64,7 +57,8 @@ export default function Sales() {
         variantId: variant.id, productId: selectedProduct.id, 
         name: `${selectedProduct.name} (${variant.color}, ${variant.size})`, 
         price: selectedProduct.sellingPrice, cost: selectedProduct.costPrice,
-        quantity: variantQty, maxStock: variant.stockQuantity
+        quantity: variantQty, maxStock: variant.stockQuantity,
+        discount: 0 // <-- NEW: Default discount is 0
       }]);
     }
     setSelectedProduct(null); setChosenVariantId(null); setVariantQty(1);
@@ -80,12 +74,29 @@ export default function Sales() {
     }).filter(item => item.quantity > 0));
   };
 
+  // --- NEW: UPDATE DISCOUNT ---
+  const updateDiscount = (variantId, value) => {
+    const numVal = parseFloat(value) || 0;
+    setCart(cart.map(item => {
+      if (item.variantId === variantId) {
+        const maxDiscount = item.price * item.quantity;
+        // Prevent discount from being negative or exceeding the item total
+        const safeDiscount = numVal < 0 ? 0 : (numVal > maxDiscount ? maxDiscount : numVal);
+        return { ...item, discount: safeDiscount };
+      }
+      return item;
+    }));
+  };
+
   const removeFromCart = (variantId) => setCart(cart.filter(item => item.variantId !== variantId));
   const clearCart = () => setCart([]);
 
-  // --- CALCULATIONS ---
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // --- UPDATED MATH FOR DISCOUNTS ---
+  const subtotal = cart.reduce((sum, item) => sum + ((item.price * item.quantity) - (item.discount || 0)), 0);
   const totalCOGS = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+  // Profit is now accurately reduced by the discount
+  const totalProfit = cart.reduce((sum, item) => sum + (((item.price - item.cost) * item.quantity) - (item.discount || 0)), 0); 
+  
   const totalPaidInstantly = (Number(cashPaid) || 0) + (Number(mpesaPaid) || 0);
   const creditAmount = Math.max(0, subtotal - totalPaidInstantly);
   const changeDue = totalPaidInstantly > subtotal ? totalPaidInstantly - subtotal : 0;
@@ -95,7 +106,6 @@ export default function Sales() {
     if (cart.length === 0) return;
     if (totalPaidInstantly > subtotal) { alert("Paid amount cannot exceed total sale amount!"); return; }
     
-    // If there is debt, we MUST have a named customer
     if (creditAmount > 0 && customerType === 'walkin' && !newCustomerName.trim()) {
       alert('Please enter a customer name to record the remaining debt.');
       return;
@@ -114,21 +124,18 @@ export default function Sales() {
       finalCustomerName = newCustomerName;
     }
 
-    // 1. Save Transaction
     await db.transactions.add({
       date: new Date(), customerId: finalCustomerId, customerName: finalCustomerName,
-      totalAmount: subtotal, cogs: totalCOGS, profit: subtotal - totalCOGS, 
+      totalAmount: subtotal, cogs: totalCOGS, profit: totalProfit, // <-- Uses new profit math
       paymentMethod: creditAmount > 0 ? 'MIXED' : (mpesaPaid > 0 ? 'M-PESA' : 'CASH'),
       paymentBreakdown: { cash: Number(cashPaid), mpesa: Number(mpesaPaid), credit: creditAmount },
       type: 'sale', items: cart
     });
 
-    // 2. Update Stock
     for (const item of cart) {
       await db.variants.update(item.variantId, { stockQuantity: item.maxStock - item.quantity });
     }
 
-    // 3. Update Customer Debt (if any)
     if (creditAmount > 0 && finalCustomerId) {
       const cust = await db.customers.get(finalCustomerId);
       await db.customers.update(finalCustomerId, { outstandingDebt: (cust.outstandingDebt || 0) + creditAmount });
@@ -191,13 +198,41 @@ export default function Sales() {
             <div className="text-center text-gray-400 mt-12"><ShoppingCart size={48} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Cart is empty</p></div>
           ) : (
             cart.map(item => (
-              <div key={item.variantId} className="flex justify-between items-start bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                <div className="flex-1"><p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.name}</p><p className="text-xs text-gray-500">KES {item.price.toLocaleString()} each</p></div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => updateCartQuantity(item.variantId, -1)} className="p-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"><Minus size={14} /></button>
-                  <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                  <button onClick={() => updateCartQuantity(item.variantId, 1)} className="p-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"><Plus size={14} /></button>
-                  <button onClick={() => removeFromCart(item.variantId)} className="p-1 text-red-400 hover:text-red-600 ml-2"><Trash2 size={14} /></button>
+              <div key={item.variantId} className="flex flex-col bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 pr-2">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.name}</p>
+                    <p className="text-xs text-gray-500">KES {item.price.toLocaleString()} each</p>
+                  </div>
+                  <button onClick={() => removeFromCart(item.variantId)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                </div>
+                
+                <div className="flex items-center justify-between mt-2">
+                  {/* Quantity Controls */}
+                  <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
+                    <button onClick={() => updateCartQuantity(item.variantId, -1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Minus size={14} /></button>
+                    <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                    <button onClick={() => updateCartQuantity(item.variantId, 1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Plus size={14} /></button>
+                  </div>
+
+                  {/* NEW: Discount Input */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Disc:</span>
+                    <input 
+                      type="number" 
+                      value={item.discount || ''} 
+                      onChange={(e) => updateDiscount(item.variantId, e.target.value)}
+                      placeholder="0"
+                      className="w-16 p-1 text-sm text-center rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-primary-500 outline-none"
+                    />
+                  </div>
+                </div>
+                
+                <div className="text-right mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="text-xs text-gray-500">Item Total: </span>
+                  <span className="font-bold text-primary-600 dark:text-primary-400">
+                    KES {((item.price * item.quantity) - (item.discount || 0)).toLocaleString()}
+                  </span>
                 </div>
               </div>
             ))
@@ -209,7 +244,7 @@ export default function Sales() {
         </div>
       </div>
 
-      {/* VARIANT MODAL */}
+      {/* VARIANT MODAL (Same as before) */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -246,7 +281,7 @@ export default function Sales() {
         </div>
       )}
 
-      {/* CHECKOUT MODAL (SPLIT PAYMENT) */}
+      {/* CHECKOUT MODAL (Same as before) */}
       {showCheckout && !showSuccess && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -255,8 +290,6 @@ export default function Sales() {
               <button onClick={() => setShowCheckout(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-              
-              {/* Customer Selection */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Customer</label>
                 <div className="flex gap-2 mb-3">
@@ -273,7 +306,6 @@ export default function Sales() {
                 )}
               </div>
 
-              {/* Split Payment Inputs */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Payment Breakdown</label>
                 <div className="space-y-3">
@@ -286,7 +318,6 @@ export default function Sales() {
                     <input type="number" placeholder="M-Pesa Paid" value={mpesaPaid || ''} onChange={(e) => setMpesaPaid(Math.max(0, Number(e.target.value)))} className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm" />
                   </div>
                   
-                  {/* Live Summary Box */}
                   <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-gray-500">Total Sale:</span><span className="font-bold">KES {subtotal.toLocaleString()}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-gray-500">Paid Instantly:</span><span className="font-bold text-green-600">KES {totalPaidInstantly.toLocaleString()}</span></div>
@@ -313,7 +344,6 @@ export default function Sales() {
         </div>
       )}
 
-      {/* SUCCESS OVERLAY */}
       {showSuccess && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center shadow-2xl">
