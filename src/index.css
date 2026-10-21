@@ -37,3 +37,7 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+/* Hide Netlify Badge */
+#netlify-badge-container {
+  display: none !important;
+}
