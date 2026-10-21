@@ -10,6 +10,9 @@ export default function Layout() {
   const { t } = useLanguage();
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcDisplay, setCalcDisplay] = useState('0');
+  
+  // --- NEW: State to hide the banner immediately when clicked ---
+  const [dismissUpdate, setDismissUpdate] = useState(false);
 
   // --- PWA UPDATE LOGIC ---
   const { needRefresh, updateServiceWorker } = useRegisterSW({
@@ -18,14 +21,13 @@ export default function Layout() {
     }
   });
 
-  // --- NEW: BULLETPROOF REFRESH FUNCTION ---
+  // --- BULLETPROOF REFRESH FUNCTION ---
   const handleRefreshApp = () => {
-    // 1. Tell the Service Worker to skip waiting and activate the new code
-    updateServiceWorker(true);
-    // 2. Force a hard reload of the page after a tiny delay
+    setDismissUpdate(true); // 1. Hide the banner INSTANTLY
+    updateServiceWorker(true); // 2. Tell SW to update
     setTimeout(() => {
-      window.location.reload();
-    }, 500);
+      window.location.reload(); // 3. Force reload
+    }, 300);
   };
 
   const handleCalcClick = (val) => {
@@ -68,6 +70,27 @@ export default function Layout() {
         </div>
       </header>
 
+      {/* --- NEW: UPDATE NOTIFICATION BANNER (Like Backup Reminder) --- */}
+      {needRefresh && !dismissUpdate && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-3 flex flex-col md:flex-row justify-between items-center gap-3 z-20">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="text-blue-600 flex-shrink-0 animate-spin" size={20} />
+            <div>
+              <p className="font-bold text-blue-800 dark:text-blue-400 text-sm">New Update Available!</p>
+              <p className="text-xs text-blue-700 dark:text-blue-500">Click refresh to get the latest features.</p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button onClick={handleRefreshApp} className="flex-1 md:flex-none px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
+              Refresh Now
+            </button>
+            <button onClick={() => setDismissUpdate(true)} className="flex-1 md:flex-none px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              Later
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 overflow-y-auto p-4 pb-24 max-w-7xl mx-auto w-full min-h-0">
         <Outlet />
       </main>
@@ -93,28 +116,6 @@ export default function Layout() {
           })}
         </div>
       </nav>
-
-      {/* --- UPDATE AVAILABLE ALERT --- */}
-      {needRefresh && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <RefreshCw size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">New Update Available!</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              We've added new features and improvements. Click below to refresh the app and get the latest version.
-            </p>
-            {/* UPDATED BUTTON WITH FORCE RELOAD */}
-            <button 
-              onClick={handleRefreshApp} 
-              className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-            >
-              <RefreshCw size={18} /> Refresh Now
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* CALCULATOR MODAL */}
       {showCalculator && (
