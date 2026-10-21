@@ -188,7 +188,8 @@ export default function Sales() {
       </div>
 
       {/* RIGHT: Cart */}
-      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg">
+      {/* RIGHT: Cart */}
+      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg min-h-0">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><ShoppingCart size={18} /> Current Order</h3>
           {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-600 font-medium">Clear All</button>}

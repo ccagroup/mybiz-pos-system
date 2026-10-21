@@ -1,14 +1,22 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Settings, Calculator, Home, ShoppingCart, Package, Users, BarChart3, FileText, CreditCard, X } from 'lucide-react';
+import { Settings, Calculator, Home, ShoppingCart, Package, Users, BarChart3, FileText, CreditCard, X, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useRegisterSW } from 'virtual:pwa-register/react'; // <-- NEW IMPORT
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useLanguage(); // <-- This gets the translations
+  const { t } = useLanguage();
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcDisplay, setCalcDisplay] = useState('0');
+
+  // --- NEW: PWA UPDATE LOGIC ---
+  const { needRefresh, updateServiceWorker } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      r && setInterval(() => { r.update(); }, 60 * 60 * 1000); // Check for updates every hour
+    }
+  });
 
   const handleCalcClick = (val) => {
     if (val === 'C') { setCalcDisplay('0'); return; }
@@ -33,7 +41,7 @@ export default function Layout() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       
-      <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-10">
+      <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-10 flex-shrink-0">
         <div>
           <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">mybiz</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -50,11 +58,11 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-24 max-w-7xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto p-4 pb-24 max-w-7xl mx-auto w-full min-h-0">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-20 flex-shrink-0">
         <div className="flex overflow-x-auto no-scrollbar justify-around">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -76,6 +84,28 @@ export default function Layout() {
         </div>
       </nav>
 
+      {/* --- NEW: UPDATE AVAILABLE ALERT --- */}
+      {needRefresh && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <RefreshCw size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">New Update Available!</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              We've added new features and improvements. Click below to refresh the app and get the latest version.
+            </p>
+            <button 
+              onClick={() => updateServiceWorker(true)} 
+              className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={18} /> Refresh Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CALCULATOR MODAL */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowCalculator(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>
