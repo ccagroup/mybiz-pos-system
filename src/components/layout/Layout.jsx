@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, Calculator, Home, ShoppingCart, Package, Users, BarChart3, FileText, CreditCard, X, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useRegisterSW } from 'virtual:pwa-register/react'; // <-- NEW IMPORT
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 export default function Layout() {
   const location = useLocation();
@@ -11,12 +11,22 @@ export default function Layout() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcDisplay, setCalcDisplay] = useState('0');
 
-  // --- NEW: PWA UPDATE LOGIC ---
+  // --- PWA UPDATE LOGIC ---
   const { needRefresh, updateServiceWorker } = useRegisterSW({
     onRegisteredSW(swUrl, r) {
-      r && setInterval(() => { r.update(); }, 60 * 60 * 1000); // Check for updates every hour
+      r && setInterval(() => { r.update(); }, 60 * 60 * 1000);
     }
   });
+
+  // --- NEW: BULLETPROOF REFRESH FUNCTION ---
+  const handleRefreshApp = () => {
+    // 1. Tell the Service Worker to skip waiting and activate the new code
+    updateServiceWorker(true);
+    // 2. Force a hard reload of the page after a tiny delay
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  };
 
   const handleCalcClick = (val) => {
     if (val === 'C') { setCalcDisplay('0'); return; }
@@ -84,7 +94,7 @@ export default function Layout() {
         </div>
       </nav>
 
-      {/* --- NEW: UPDATE AVAILABLE ALERT --- */}
+      {/* --- UPDATE AVAILABLE ALERT --- */}
       {needRefresh && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
@@ -95,8 +105,9 @@ export default function Layout() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               We've added new features and improvements. Click below to refresh the app and get the latest version.
             </p>
+            {/* UPDATED BUTTON WITH FORCE RELOAD */}
             <button 
-              onClick={() => updateServiceWorker(true)} 
+              onClick={handleRefreshApp} 
               className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center justify-center gap-2"
             >
               <RefreshCw size={18} /> Refresh Now
