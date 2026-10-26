@@ -22,12 +22,16 @@ export default function Layout() {
   });
 
   // --- BULLETPROOF REFRESH FUNCTION ---
-  const handleRefreshApp = () => {
-    setDismissUpdate(true); // 1. Hide the banner INSTANTLY
-    updateServiceWorker(true); // 2. Tell SW to update
-    setTimeout(() => {
-      window.location.reload(); // 3. Force reload
-    }, 300);
+    const handleRefreshApp = async () => {
+    setDismissUpdate(true); // Hide banner instantly
+    
+    // 1. Tell Service Worker to update
+    await updateServiceWorker(true);
+    
+    // 2. Force a hard reload by adding a unique timestamp to the URL
+    // This bypasses the cached index.html completely
+    const currentUrl = window.location.origin + window.location.pathname;
+    window.location.href = `${currentUrl}?refresh=${Date.now()}`;
   };
 
   const handleCalcClick = (val) => {

@@ -189,12 +189,15 @@ export default function Sales() {
 
       {/* RIGHT: Cart */}
       {/* RIGHT: Cart */}
-      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg min-h-0">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+           {/* RIGHT: Cart */}
+      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg h-full max-h-[calc(100vh-160px)]">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><ShoppingCart size={18} /> Current Order</h3>
           {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-600 font-medium">Clear All</button>}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        
+        {/* THIS IS THE SCROLLING AREA - min-h-0 is the magic fix */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {cart.length === 0 ? (
             <div className="text-center text-gray-400 mt-12"><ShoppingCart size={48} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Cart is empty</p></div>
           ) : (
@@ -209,14 +212,12 @@ export default function Sales() {
                 </div>
                 
                 <div className="flex items-center justify-between mt-2">
-                  {/* Quantity Controls */}
                   <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
                     <button onClick={() => updateCartQuantity(item.variantId, -1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Minus size={14} /></button>
                     <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
                     <button onClick={() => updateCartQuantity(item.variantId, 1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Plus size={14} /></button>
                   </div>
 
-                  {/* NEW: Discount Input */}
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Disc:</span>
                     <input 
@@ -239,12 +240,12 @@ export default function Sales() {
             ))
           )}
         </div>
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
+
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex-shrink-0">
           <div className="flex justify-between mb-4 text-lg font-bold text-gray-900 dark:text-gray-100"><span>Total</span><span>KES {subtotal.toLocaleString()}</span></div>
           <button disabled={cart.length === 0} onClick={() => setShowCheckout(true)} className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white rounded-xl font-bold">Proceed to Checkout</button>
         </div>
       </div>
-
       {/* VARIANT MODAL (Same as before) */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
