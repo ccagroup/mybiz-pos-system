@@ -41,7 +41,6 @@ export default function Sales() {
     return matchesSearch && matchesCategory;
   });
 
-  // --- CART LOGIC ---
   const addToCartFromModal = () => {
     if (!chosenVariantId) return;
     const variant = selectedProduct.variants.find(v => v.id === chosenVariantId);
@@ -58,7 +57,7 @@ export default function Sales() {
         name: `${selectedProduct.name} (${variant.color}, ${variant.size})`, 
         price: selectedProduct.sellingPrice, cost: selectedProduct.costPrice,
         quantity: variantQty, maxStock: variant.stockQuantity,
-        discount: 0 // <-- NEW: Default discount is 0
+        discount: 0
       }]);
     }
     setSelectedProduct(null); setChosenVariantId(null); setVariantQty(1);
@@ -74,13 +73,11 @@ export default function Sales() {
     }).filter(item => item.quantity > 0));
   };
 
-  // --- NEW: UPDATE DISCOUNT ---
   const updateDiscount = (variantId, value) => {
     const numVal = parseFloat(value) || 0;
     setCart(cart.map(item => {
       if (item.variantId === variantId) {
         const maxDiscount = item.price * item.quantity;
-        // Prevent discount from being negative or exceeding the item total
         const safeDiscount = numVal < 0 ? 0 : (numVal > maxDiscount ? maxDiscount : numVal);
         return { ...item, discount: safeDiscount };
       }
@@ -91,17 +88,14 @@ export default function Sales() {
   const removeFromCart = (variantId) => setCart(cart.filter(item => item.variantId !== variantId));
   const clearCart = () => setCart([]);
 
-  // --- UPDATED MATH FOR DISCOUNTS ---
   const subtotal = cart.reduce((sum, item) => sum + ((item.price * item.quantity) - (item.discount || 0)), 0);
   const totalCOGS = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
-  // Profit is now accurately reduced by the discount
   const totalProfit = cart.reduce((sum, item) => sum + (((item.price - item.cost) * item.quantity) - (item.discount || 0)), 0); 
   
   const totalPaidInstantly = (Number(cashPaid) || 0) + (Number(mpesaPaid) || 0);
   const creditAmount = Math.max(0, subtotal - totalPaidInstantly);
   const changeDue = totalPaidInstantly > subtotal ? totalPaidInstantly - subtotal : 0;
 
-  // --- CHECKOUT LOGIC ---
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
     if (totalPaidInstantly > subtotal) { alert("Paid amount cannot exceed total sale amount!"); return; }
@@ -126,7 +120,7 @@ export default function Sales() {
 
     await db.transactions.add({
       date: new Date(), customerId: finalCustomerId, customerName: finalCustomerName,
-      totalAmount: subtotal, cogs: totalCOGS, profit: totalProfit, // <-- Uses new profit math
+      totalAmount: subtotal, cogs: totalCOGS, profit: totalProfit,
       paymentMethod: creditAmount > 0 ? 'MIXED' : (mpesaPaid > 0 ? 'M-PESA' : 'CASH'),
       paymentBreakdown: { cash: Number(cashPaid), mpesa: Number(mpesaPaid), credit: creditAmount },
       type: 'sale', items: cart
@@ -154,8 +148,8 @@ export default function Sales() {
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
       {/* LEFT: Product Picker */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3">
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden min-h-0">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3 flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input type="text" placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -170,7 +164,7 @@ export default function Sales() {
             ))}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {filteredProducts.map(product => (
               <div key={product.id} onClick={() => { setSelectedProduct(product); setChosenVariantId(product.variants[0]?.id || null); setVariantQty(1); }}
@@ -187,16 +181,13 @@ export default function Sales() {
         </div>
       </div>
 
-      {/* RIGHT: Cart */}
-      {/* RIGHT: Cart */}
-           {/* RIGHT: Cart */}
+      {/* RIGHT: Cart - FIXED SCROLLING */}
       <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg h-full max-h-[calc(100vh-160px)]">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><ShoppingCart size={18} /> Current Order</h3>
           {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-600 font-medium">Clear All</button>}
         </div>
         
-        {/* THIS IS THE SCROLLING AREA - min-h-0 is the magic fix */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {cart.length === 0 ? (
             <div className="text-center text-gray-400 mt-12"><ShoppingCart size={48} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Cart is empty</p></div>
@@ -246,7 +237,8 @@ export default function Sales() {
           <button disabled={cart.length === 0} onClick={() => setShowCheckout(true)} className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white rounded-xl font-bold">Proceed to Checkout</button>
         </div>
       </div>
-      {/* VARIANT MODAL (Same as before) */}
+
+      {/* VARIANT MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -283,7 +275,7 @@ export default function Sales() {
         </div>
       )}
 
-      {/* CHECKOUT MODAL (Same as before) */}
+      {/* CHECKOUT MODAL */}
       {showCheckout && !showSuccess && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">

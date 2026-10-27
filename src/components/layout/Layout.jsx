@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, Calculator, Home, ShoppingCart, Package, Users, BarChart3, FileText, CreditCard, X, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -10,28 +10,38 @@ export default function Layout() {
   const { t } = useLanguage();
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcDisplay, setCalcDisplay] = useState('0');
-  
-  // --- NEW: State to hide the banner immediately when clicked ---
-  const [dismissUpdate, setDismissUpdate] = useState(false);
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
 
-  // --- PWA UPDATE LOGIC ---
   const { needRefresh, updateServiceWorker } = useRegisterSW({
     onRegisteredSW(swUrl, r) {
       r && setInterval(() => { r.update(); }, 60 * 60 * 1000);
     }
   });
 
-  // --- BULLETPROOF REFRESH FUNCTION ---
-    const handleRefreshApp = async () => {
-    setDismissUpdate(true); // Hide banner instantly
+  // Track if user has already dismissed/refreshed this version
+  useEffect(() => {
+    const dismissedVersion = localStorage.getItem('dismissedUpdateVersion');
+    const currentVersion = needRefresh ? 'v' + Date.now() : null;
     
-    // 1. Tell Service Worker to update
+    if (needRefresh && dismissedVersion !== currentVersion) {
+      setShowUpdateBanner(true);
+    } else {
+      setShowUpdateBanner(false);
+    }
+  }, [needRefresh]);
+
+  const handleRefreshApp = async () => {
+    localStorage.setItem('dismissedUpdateVersion', 'refreshed-' + Date.now());
+    setShowUpdateBanner(false);
     await updateServiceWorker(true);
-    
-    // 2. Force a hard reload by adding a unique timestamp to the URL
-    // This bypasses the cached index.html completely
-    const currentUrl = window.location.origin + window.location.pathname;
-    window.location.href = `${currentUrl}?refresh=${Date.now()}`;
+    setTimeout(() => {
+      window.location.href = window.location.origin + '?t=' + Date.now();
+    }, 300);
+  };
+
+  const handleDismissUpdate = () => {
+    localStorage.setItem('dismissedUpdateVersion', 'dismissed-' + Date.now());
+    setShowUpdateBanner(false);
   };
 
   const handleCalcClick = (val) => {
@@ -74,9 +84,8 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* --- NEW: UPDATE NOTIFICATION BANNER (Like Backup Reminder) --- */}
-      {needRefresh && !dismissUpdate && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-3 flex flex-col md:flex-row justify-between items-center gap-3 z-20">
+      {showUpdateBanner && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-3 flex flex-col md:flex-row justify-between items-center gap-3 z-20 flex-shrink-0">
           <div className="flex items-center gap-3">
             <RefreshCw className="text-blue-600 flex-shrink-0 animate-spin" size={20} />
             <div>
@@ -88,7 +97,7 @@ export default function Layout() {
             <button onClick={handleRefreshApp} className="flex-1 md:flex-none px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">
               Refresh Now
             </button>
-            <button onClick={() => setDismissUpdate(true)} className="flex-1 md:flex-none px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button onClick={handleDismissUpdate} className="flex-1 md:flex-none px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               Later
             </button>
           </div>
@@ -121,7 +130,6 @@ export default function Layout() {
         </div>
       </nav>
 
-      {/* CALCULATOR MODAL */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowCalculator(false)}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden" onClick={(e) => e.stopPropagation()}>

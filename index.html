@@ -7,6 +7,21 @@
     <meta name="theme-color" content="#2563eb" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <title>mybiz</title>
+    <script>
+      // Remove Netlify badge as soon as it appears
+      const removeNetlifyBadge = () => {
+        const badge = document.getElementById('netlify-badge-container');
+        if (badge) badge.remove();
+        // Also remove any iframes from netlify
+        document.querySelectorAll('iframe').forEach(iframe => {
+          if (iframe.src && iframe.src.includes('netlify')) iframe.remove();
+        });
+      };
+      // Check immediately and every 500ms for 10 seconds
+      removeNetlifyBadge();
+      const interval = setInterval(removeNetlifyBadge, 500);
+      setTimeout(() => clearInterval(interval), 10000);
+    </script>
   </head>
   <body>
     <div id="root"></div>
