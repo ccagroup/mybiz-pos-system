@@ -21,7 +21,7 @@ export default function Sales() {
 
     const products = useLiveQuery(async () => {
     const allProducts = await db.products.toArray();
-    const allVariants = await db.varants.toArray();
+    const allVariants = await db.variants.toArray();
     return allProducts.map(prod => {
       const prodVariants = allVariants.filter(v => v.productId === prod.id && v.stockQuantity > 0);
       return { ...prod, variants: prodVariants };
