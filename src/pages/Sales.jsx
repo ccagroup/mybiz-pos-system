@@ -19,19 +19,22 @@ export default function Sales() {
   const [chosenVariantId, setChosenVariantId] = useState(null);
   const [variantQty, setVariantQty] = useState(1);
 
-  const products = useLiveQuery(async () => {
+    const products = useLiveQuery(async () => {
     const allProducts = await db.products.toArray();
-    const allVariants = await db.variants.toArray();
+    const allVariants = await db.varants.toArray();
     return allProducts.map(prod => {
       const prodVariants = allVariants.filter(v => v.productId === prod.id && v.stockQuantity > 0);
       return { ...prod, variants: prodVariants };
-    }).filter(p => !p.isDeleted && p.variants.length > 0);
+    }).filter(p => !p.isDeleted); // Removed the variants.length > 0 filter
   });
 
   const customers = useLiveQuery(() => db.customers.toArray());
   const safeProducts = products || [];
+  console.log('Products loaded:', safeProducts.length); // Debug log
   const safeCustomers = customers || [];
   const categories = ['All', ...new Set(safeProducts.map(p => p.category).filter(Boolean))];
+
+  
 
   const filteredProducts = safeProducts.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
