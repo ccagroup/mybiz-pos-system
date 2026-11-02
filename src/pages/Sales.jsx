@@ -7,7 +7,6 @@ export default function Sales() {
   const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  
   const [showCheckout, setShowCheckout] = useState(false);
   const [customerType, setCustomerType] = useState('walkin');
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
@@ -16,7 +15,6 @@ export default function Sales() {
   const [mpesaPaid, setMpesaPaid] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [chosenVariantId, setChosenVariantId] = useState(null);
   const [variantQty, setVariantQty] = useState(1);
@@ -56,8 +54,7 @@ export default function Sales() {
         variantId: variant.id, productId: selectedProduct.id, 
         name: `${selectedProduct.name} (${variant.color}, ${variant.size})`, 
         price: selectedProduct.sellingPrice, cost: selectedProduct.costPrice,
-        quantity: variantQty, maxStock: variant.stockQuantity,
-        discount: 0
+        quantity: variantQty, maxStock: variant.stockQuantity, discount: 0
       }]);
     }
     setSelectedProduct(null); setChosenVariantId(null); setVariantQty(1);
@@ -91,7 +88,6 @@ export default function Sales() {
   const subtotal = cart.reduce((sum, item) => sum + ((item.price * item.quantity) - (item.discount || 0)), 0);
   const totalCOGS = cart.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
   const totalProfit = cart.reduce((sum, item) => sum + (((item.price - item.cost) * item.quantity) - (item.discount || 0)), 0); 
-  
   const totalPaidInstantly = (Number(cashPaid) || 0) + (Number(mpesaPaid) || 0);
   const creditAmount = Math.max(0, subtotal - totalPaidInstantly);
   const changeDue = totalPaidInstantly > subtotal ? totalPaidInstantly - subtotal : 0;
@@ -99,10 +95,8 @@ export default function Sales() {
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
     if (totalPaidInstantly > subtotal) { alert("Paid amount cannot exceed total sale amount!"); return; }
-    
     if (creditAmount > 0 && customerType === 'walkin' && !newCustomerName.trim()) {
-      alert('Please enter a customer name to record the remaining debt.');
-      return;
+      alert('Please enter a customer name to record the remaining debt.'); return;
     }
 
     setIsProcessing(true);
@@ -112,9 +106,7 @@ export default function Sales() {
     if (customerType === 'saved' && selectedCustomerId) {
       finalCustomerName = safeCustomers.find(c => c.id === selectedCustomerId).name;
     } else if (creditAmount > 0 && customerType === 'walkin') {
-      finalCustomerId = await db.customers.add({
-        name: newCustomerName, phone: '', isBlocked: false, createdAt: new Date(), outstandingDebt: creditAmount
-      });
+      finalCustomerId = await db.customers.add({ name: newCustomerName, phone: '', isBlocked: false, createdAt: new Date(), outstandingDebt: creditAmount });
       finalCustomerName = newCustomerName;
     }
 
@@ -135,21 +127,18 @@ export default function Sales() {
       await db.customers.update(finalCustomerId, { outstandingDebt: (cust.outstandingDebt || 0) + creditAmount });
     }
 
-    setIsProcessing(false);
-    setShowSuccess(true);
-    
+    setIsProcessing(false); setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false); setShowCheckout(false); setCart([]);
-      setCashPaid(0); setMpesaPaid(0); setCustomerType('walkin'); setSelectedCustomerId(null);
-      setNewCustomerName('');
+      setCashPaid(0); setMpesaPaid(0); setCustomerType('walkin'); setSelectedCustomerId(null); setNewCustomerName('');
     }, 2000);
   };
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
       {/* LEFT: Product Picker */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden min-h-0">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3 flex-shrink-0">
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input type="text" placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -164,7 +153,7 @@ export default function Sales() {
             ))}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {filteredProducts.map(product => (
               <div key={product.id} onClick={() => { setSelectedProduct(product); setChosenVariantId(product.variants[0]?.id || null); setVariantQty(1); }}
@@ -181,7 +170,7 @@ export default function Sales() {
         </div>
       </div>
 
-      {/* RIGHT: Cart - FIXED SCROLLING */}
+      {/* RIGHT: Cart */}
       <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg h-full max-h-[calc(100vh-160px)]">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><ShoppingCart size={18} /> Current Order</h3>
@@ -201,31 +190,21 @@ export default function Sales() {
                   </div>
                   <button onClick={() => removeFromCart(item.variantId)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
                 </div>
-                
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
                     <button onClick={() => updateCartQuantity(item.variantId, -1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Minus size={14} /></button>
                     <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
                     <button onClick={() => updateCartQuantity(item.variantId, 1)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Plus size={14} /></button>
                   </div>
-
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Disc:</span>
-                    <input 
-                      type="number" 
-                      value={item.discount || ''} 
-                      onChange={(e) => updateDiscount(item.variantId, e.target.value)}
-                      placeholder="0"
-                      className="w-16 p-1 text-sm text-center rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-primary-500 outline-none"
-                    />
+                    <input type="number" value={item.discount || ''} onChange={(e) => updateDiscount(item.variantId, e.target.value)} placeholder="0"
+                      className="w-16 p-1 text-sm text-center rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-1 focus:ring-primary-500 outline-none" />
                   </div>
                 </div>
-                
                 <div className="text-right mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="text-xs text-gray-500">Item Total: </span>
-                  <span className="font-bold text-primary-600 dark:text-primary-400">
-                    KES {((item.price * item.quantity) - (item.discount || 0)).toLocaleString()}
-                  </span>
+                  <span className="font-bold text-primary-600 dark:text-primary-400">KES {((item.price * item.quantity) - (item.discount || 0)).toLocaleString()}</span>
                 </div>
               </div>
             ))
@@ -299,7 +278,6 @@ export default function Sales() {
                   <input type="text" placeholder="Enter name for credit customer" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} className="w-full p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 text-sm" />
                 )}
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Payment Breakdown</label>
                 <div className="space-y-3">
@@ -311,7 +289,6 @@ export default function Sales() {
                     <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input type="number" placeholder="M-Pesa Paid" value={mpesaPaid || ''} onChange={(e) => setMpesaPaid(Math.max(0, Number(e.target.value)))} className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm" />
                   </div>
-                  
                   <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-gray-500">Total Sale:</span><span className="font-bold">KES {subtotal.toLocaleString()}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-gray-500">Paid Instantly:</span><span className="font-bold text-green-600">KES {totalPaidInstantly.toLocaleString()}</span></div>
@@ -328,7 +305,6 @@ export default function Sales() {
                   </div>
                 </div>
               </div>
-
               <button onClick={handleCompleteSale} disabled={isProcessing || totalPaidInstantly > subtotal}
                 className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-2">
                 {isProcessing ? 'Processing...' : <><CheckCircle size={20} /> Complete Sale</>}

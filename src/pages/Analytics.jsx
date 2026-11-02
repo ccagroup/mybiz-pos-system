@@ -65,52 +65,23 @@ export default function Analytics() {
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Business Analytics</h2>
 
       {/* Row 1: Line Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
-        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Revenue vs Profit Trend</h3>
-        <div className="h-72 w-full">
+             <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <ComposedChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-              {/* Left Y-Axis for Revenue */}
-              <YAxis 
-                yAxisId="revenue" 
-                stroke="#3b82f6" 
-                fontSize={12} 
-                tickFormatter={(value) => `${value/1000}k`} 
-              />
-              {/* Right Y-Axis for Profit */}
-              <YAxis 
-                yAxisId="profit" 
-                orientation="right" 
-                stroke="#10b981" 
-                fontSize={12} 
-                tickFormatter={(value) => `${value/1000}k`} 
-              />
+              <YAxis yAxisId="left" stroke="#3b82f6" fontSize={12} tickFormatter={(value) => `${value/1000}k`} />
+              <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={12} tickFormatter={(value) => `${value/1000}k`} />
               <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
               <Legend />
-              <Line 
-                yAxisId="revenue" 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#3b82f6" 
-                strokeWidth={3} 
-                dot={{ r: 5 }} 
-                name="Revenue" 
-              />
-              <Line 
-                yAxisId="profit" 
-                type="monotone" 
-                dataKey="profit" 
-                stroke="#10b981" 
-                strokeWidth={3} 
-                dot={{ r: 5 }} 
-                name="Profit" 
-              />
-            </LineChart>
+              {/* Revenue as Bar */}
+              <Bar yAxisId="left" dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Revenue" />
+              {/* Profit as Line */}
+              <Line yAxisId="right" type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} name="Profit" />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      
 
       {/* Row 2: Donut & Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // Silent background updates. No banners.
       includeAssets: ['icon.png'],
       manifest: {
         name: 'mybiz POS System',
@@ -27,8 +27,6 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/_/, /\/[^\/]+\.[^\/]+$/],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
       }
     })
   ],
