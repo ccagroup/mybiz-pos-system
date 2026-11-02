@@ -19,22 +19,19 @@ export default function Sales() {
   const [chosenVariantId, setChosenVariantId] = useState(null);
   const [variantQty, setVariantQty] = useState(1);
 
-    const products = useLiveQuery(async () => {
+  const products = useLiveQuery(async () => {
     const allProducts = await db.products.toArray();
     const allVariants = await db.variants.toArray();
     return allProducts.map(prod => {
       const prodVariants = allVariants.filter(v => v.productId === prod.id && v.stockQuantity > 0);
       return { ...prod, variants: prodVariants };
-    }).filter(p => !p.isDeleted); // Removed the variants.length > 0 filter
+    }).filter(p => !p.isDeleted);
   });
 
   const customers = useLiveQuery(() => db.customers.toArray());
   const safeProducts = products || [];
-  console.log('Products loaded:', safeProducts.length); // Debug log
   const safeCustomers = customers || [];
   const categories = ['All', ...new Set(safeProducts.map(p => p.category).filter(Boolean))];
-
-  
 
   const filteredProducts = safeProducts.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -138,10 +135,11 @@ export default function Sales() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
-      {/* LEFT: Product Picker */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+    <div className="space-y-4 pb-24">
+      {/* PRODUCT PICKER - Always visible on top */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Select Products</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input type="text" placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -156,33 +154,36 @@ export default function Sales() {
             ))}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {filteredProducts.map(product => (
-              <div key={product.id} onClick={() => { setSelectedProduct(product); setChosenVariantId(product.variants[0]?.id || null); setVariantQty(1); }}
-                   className="border border-gray-100 dark:border-gray-700 rounded-xl p-3 hover:border-primary-500 hover:shadow-md transition-all cursor-pointer bg-gray-50 dark:bg-gray-900">
-                <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{product.name}</h4>
-                <p className="text-xs text-gray-500 mt-1">{product.variants.length} variant(s) in stock</p>
-                <div className="flex justify-between items-center mt-3">
-                  <span className="font-bold text-primary-600 dark:text-primary-400 text-sm">KES {product.sellingPrice.toLocaleString()}</span>
+        <div className="p-4 max-h-96 overflow-y-auto">
+          {filteredProducts.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">No products found. Add stock first!</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {filteredProducts.map(product => (
+                <div key={product.id} onClick={() => { setSelectedProduct(product); setChosenVariantId(product.variants[0]?.id || null); setVariantQty(1); }}
+                     className="border border-gray-100 dark:border-gray-700 rounded-xl p-3 hover:border-primary-500 hover:shadow-md transition-all cursor-pointer bg-gray-50 dark:bg-gray-900">
+                  <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{product.name}</h4>
+                  <p className="text-xs text-gray-500 mt-1">{product.variants.length} variant(s)</p>
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="font-bold text-primary-600 dark:text-primary-400 text-sm">KES {product.sellingPrice.toLocaleString()}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          {filteredProducts.length === 0 && <p className="text-center text-gray-400 mt-8">No products found.</p>}
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* RIGHT: Cart */}
-      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col shadow-lg h-full max-h-[calc(100vh-160px)]">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+      {/* CART - Below products */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-lg">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2"><ShoppingCart size={18} /> Current Order</h3>
           {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-600 font-medium">Clear All</button>}
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+        <div className="p-4 max-h-64 overflow-y-auto space-y-3">
           {cart.length === 0 ? (
-            <div className="text-center text-gray-400 mt-12"><ShoppingCart size={48} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Cart is empty</p></div>
+            <div className="text-center text-gray-400 py-8"><ShoppingCart size={48} className="mx-auto mb-3 opacity-20" /><p className="text-sm">Cart is empty</p></div>
           ) : (
             cart.map(item => (
               <div key={item.variantId} className="flex flex-col bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
@@ -214,7 +215,7 @@ export default function Sales() {
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl flex-shrink-0">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
           <div className="flex justify-between mb-4 text-lg font-bold text-gray-900 dark:text-gray-100"><span>Total</span><span>KES {subtotal.toLocaleString()}</span></div>
           <button disabled={cart.length === 0} onClick={() => setShowCheckout(true)} className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white rounded-xl font-bold">Proceed to Checkout</button>
         </div>
